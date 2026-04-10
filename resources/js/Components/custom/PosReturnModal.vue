@@ -91,10 +91,20 @@
 
                             <div class="mt-4 flex items-center justify-between">
                                 <p class="text-sm text-gray-700">Selected refund total: {{ selectedRefundTotal.toFixed(2) }} LKR</p>
-                                <button class="rounded bg-blue-600 px-4 py-2 font-semibold text-white"
-                                    :disabled="selectedProducts.length === 0" @click="applyToBilling">
-                                    Load Selected To Billing
-                                </button>
+                                <div class="flex items-center gap-3">
+                                    <div>
+                                        <label class="mb-1 block text-xs font-semibold text-gray-700">Return Type</label>
+                                        <select v-model="returnType"
+                                            class="rounded border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
+                                            <option value="cash_return">Cash Return</option>
+                                            <option value="product_return">Product Exchange</option>
+                                        </select>
+                                    </div>
+                                    <button class="rounded bg-blue-600 px-4 py-2 font-semibold text-white"
+                                        :disabled="selectedProducts.length === 0" @click="applyToBilling">
+                                        Load Selected To Billing
+                                    </button>
+                                </div>
                             </div>
                         </DialogPanel>
                     </TransitionChild>
@@ -128,6 +138,7 @@ const orderItems = ref([]);
 const selectedSaleId = ref("");
 const selectedSale = ref(null);
 const searchText = ref("");
+const returnType = ref("cash_return");
 
 const filteredSales = computed(() => {
     const q = searchText.value.toLowerCase();
@@ -202,6 +213,7 @@ const applyToBilling = () => {
         sale: selectedSale.value,
         products,
         refundTotal: selectedRefundTotal.value,
+        returnType: returnType.value,
     });
 
     emit("update:open", false);
@@ -214,6 +226,7 @@ watch(
             selectedSaleId.value = "";
             selectedSale.value = null;
             orderItems.value = [];
+            returnType.value = "cash_return";
             await loadOrders();
         }
     }

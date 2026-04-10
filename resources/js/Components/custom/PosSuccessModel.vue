@@ -94,8 +94,37 @@ const props = defineProps({
     totalDiscount: String,
     total: String,
     custom_discount: Number,
-    custom_discount_type: String
+    custom_discount_type: String,
+    paymentMethod: {
+        type: String,
+        default: "cash",
+    },
+    isReturnExchange: {
+        type: Boolean,
+        default: false,
+    },
+    returnOrderId: {
+        type: String,
+        default: "",
+    },
+    exchangeCredit: {
+        type: Number,
+        default: 0,
+    },
 });
+
+const paymentMethodLabel = computed(() => {
+    const method = String(props.paymentMethod || "cash").toLowerCase();
+    if (method === "card") {
+        return "Card";
+    }
+    if (method === "online") {
+        return "Online";
+    }
+    return "Cash";
+});
+
+const isCashPayment = computed(() => paymentMethodLabel.value === "Cash");
 
 const handlePrintReceipt = () => {
     // Calculate totals from props.products
@@ -220,6 +249,14 @@ const productRows = props.products
               font-size: 12px;
               margin: 4px 0;
           }
+          .exchange-badge {
+              display: inline-block;
+              margin-top: 6px;
+              padding: 2px 8px;
+              font-size: 11px;
+              font-weight: bold;
+              border: 1px solid #000;
+          }
           .section {
               margin-bottom: 16px;
               padding-top: 8px;
@@ -296,6 +333,7 @@ const productRows = props.products
   ${(companyInfo?.value?.phone || companyInfo?.value?.phone2 || companyInfo?.value?.email)
             ? `<p>${companyInfo.value.phone || ''} ${companyInfo.value.phone2 || ''}  ${companyInfo.value.email || ''}</p>`
             : ''}
+    ${props.isReturnExchange ? `<div class="exchange-badge">RETURN EXCHANGE BILL</div>` : ''}
 
           </div>
 
@@ -324,6 +362,18 @@ const productRows = props.products
                       <small>${props.cashier.name}</small>
                   </div>
               </div>
+              ${props.isReturnExchange ? `
+              <div class="info-row">
+                  <div>
+                      <p>Return Ref:</p>
+                      <small>${props.returnOrderId || '-'}</small>
+                  </div>
+                  <div>
+                      <p>Return Credit:</p>
+                      <small>${(Number(props.exchangeCredit) || 0).toFixed(2)} LKR</small>
+                  </div>
+              </div>
+              ` : ''}
           </div>
 
 
@@ -380,6 +430,11 @@ const productRows = props.products
                   <span>${(Number(props.total) || 0).toFixed(2)} LKR</span>
               </div>
               <div>
+                  <span>Payment Method</span>
+                  <span>${paymentMethodLabel.value}</span>
+              </div>
+              ${isCashPayment.value ? `
+              <div>
                   <span>Cash</span>
                   <span>${(Number(props.cash) || 0).toFixed(2)} LKR</span>
               </div>
@@ -387,6 +442,7 @@ const productRows = props.products
                   <span>Balance</span>
                   <span>${(Number(props.balance) || 0).toFixed(2)} LKR</span>
               </div>
+              ` : ``}
           </div>
           <div class="footer">
 

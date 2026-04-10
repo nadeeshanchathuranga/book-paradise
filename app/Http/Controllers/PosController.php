@@ -129,7 +129,7 @@ class PosController extends Controller
                 }
 
                 $first = $items->first();
-                $unitPrice = (float) $items->avg('unit_price');
+                $unitPrice = $this->resolveReturnUnitPrice($first, $items);
 
                 return [
                     'product_id' => (int) $productId,
@@ -157,7 +157,7 @@ class PosController extends Controller
 
         $validated = $request->validate([
             'sale_id' => 'required|exists:sales,id',
-            'refund_method' => 'required|in:Cash,Card,Online',
+            'refund_method' => 'required|in:Cash,Card,Online,Exchange',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
@@ -192,13 +192,11 @@ class PosController extends Controller
                     ]);
                 }
 
-                $unitPrice = (float) SaleItem::where('sale_id', $sale->id)
+                $saleItems = SaleItem::where('sale_id', $sale->id)
                     ->where('product_id', $productId)
-                    ->avg('unit_price');
+                    ->get();
 
-                if ($unitPrice <= 0) {
-                    $unitPrice = (float) optional(Product::find($productId))->selling_price;
-                }
+                $unitPrice = $this->resolveReturnUnitPrice($saleItems->first(), $saleItems);
 
                 $refundAmount = $unitPrice * $returnQty;
                 $refundTotal += $refundAmount;
@@ -237,14 +235,17 @@ class PosController extends Controller
                 'Cash' => 'Cash',
                 'Card' => 'Credit Card',
                 'Online' => 'Online',
+                'Exchange' => 'Exchange',
             ];
 
-            Payment::create([
-                'sale_id' => $sale->id,
-                'amount' => -1 * round($refundTotal, 2),
-                'method' => $paymentMethodMap[$validated['refund_method']] ?? 'Cash',
-                'payment_date' => now()->toDateString(),
-            ]);
+            if ($validated['refund_method'] !== 'Exchange') {
+                Payment::create([
+                    'sale_id' => $sale->id,
+                    'amount' => -1 * round($refundTotal, 2),
+                    'method' => $paymentMethodMap[$validated['refund_method']] ?? 'Cash',
+                    'payment_date' => now()->toDateString(),
+                ]);
+            }
 
             DB::commit();
 
@@ -265,6 +266,29 @@ class PosController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    private function resolveReturnUnitPrice(?SaleItem $saleItem, $saleItems): float
+    {
+        $product = $saleItem?->product;
+
+        if ($product && (float) ($product->discount ?? 0) > 0) {
+            if (!is_null($product->discounted_price) && (float) $product->discounted_price > 0) {
+                return (float) $product->discounted_price;
+            }
+
+            $sellingPrice = (float) ($product->selling_price ?? 0);
+            $discountPercent = (float) $product->discount;
+            return round($sellingPrice - (($sellingPrice * $discountPercent) / 100), 2);
+        }
+
+        if ($saleItems instanceof \Illuminate\Support\Collection && $saleItems->isNotEmpty()) {
+            $lineTotal = (float) $saleItems->sum('total_price');
+            $lineQty = max(1, (int) $saleItems->sum('quantity'));
+            return round($lineTotal / $lineQty, 2);
+        }
+
+        return (float) ($saleItem->unit_price ?? optional($product)->selling_price ?? 0);
     }
 
     public function submit(Request $request)
@@ -348,6 +372,7 @@ class PosController extends Controller
                 'sale_date' => now()->toDateString(), // Current date
                 'cash' => $request->input('cash'),
                 'custom_discount' => $request->input('custom_discount'),
+                'custom_discount_type' => $request->input('custom_discount_type', 'fixed'),
 
             ]);
 
@@ -355,6 +380,14 @@ class PosController extends Controller
                 // Check stock before saving sale items
                 $productModel = Product::find($product['id']);
                 if ($productModel) {
+                    $hasItemDiscount = isset($product['discount'])
+                        && (float) $product['discount'] > 0
+                        && !empty($product['apply_discount']);
+
+                    $unitPrice = $hasItemDiscount
+                        ? (float) ($product['discounted_price'] ?? $product['selling_price'])
+                        : (float) ($product['selling_price'] ?? 0);
+
                     $newStockQuantity = $productModel->stock_quantity - $product['quantity'];
 
                     // Prevent stock from going negative
@@ -380,8 +413,8 @@ class PosController extends Controller
                         'sale_id' => $sale->id,
                         'product_id' => $product['id'],
                         'quantity' => $product['quantity'],
-                        'unit_price' => $product['selling_price'],
-                        'total_price' => $product['quantity'] * $product['selling_price'],
+                        'unit_price' => $unitPrice,
+                        'total_price' => (float) $product['quantity'] * $unitPrice,
                     ]);
 
                     StockTransaction::create([

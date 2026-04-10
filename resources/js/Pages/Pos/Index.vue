@@ -203,7 +203,7 @@
                                                 item.discount > 0 &&
                                                 item.apply_discount == false &&
                                                 !appliedCoupon &&
-                                                !isReturnMode
+                                                !isReturnCashMode
                                             "
                                                 class="cursor-pointer py-1 text-center px-4 bg-green-600 rounded-xl font-bold text-white tracking-wider">
                                                 Apply {{ item.discount }}% off
@@ -214,7 +214,7 @@
                                                 item.discount > 0 &&
                                                 item.apply_discount == true &&
                                                 !appliedCoupon &&
-                                                !isReturnMode
+                                                !isReturnCashMode
                                             " @click="removeDiscount(item.id)"
                                                 class="cursor-pointer py-1 text-center px-4 bg-red-600 rounded-xl font-bold text-white tracking-wider">
                                                 Remove {{ item.discount }}% Off
@@ -261,22 +261,20 @@
                                 <span class="flex items-center">
                                     <CurrencyInput v-model="custom_discount" @blur="validateCustomDiscount"
                                         placeholder="Enter value" class=" rounded-md px-2 py-1 text-black text-md"
-                                        :disabled="isReturnMode" />
+                                        :disabled="isReturnCashMode" />
                                     <select v-model="custom_discount_type"
                                         class="ml-2 px-8 border-black rounded-md text-black   py-1 text-md"
-                                        :disabled="isReturnMode">
+                                        :disabled="isReturnCashMode">
                                         <option value="percent">%</option>
                                         <option value="fixed">Rs</option>
                                     </select>
                                 </span>
                             </div>
 
-
-
-
-
-
-
+                            <div v-if="isExchangeReturn" class="flex items-center justify-between w-full px-8 pt-4 pb-4 border-b border-black">
+                                <p class="text-xl text-black">Return Credit</p>
+                                <p>{{ Number(exchangeCredit || 0).toFixed(2) }} LKR</p>
+                            </div>
 
                             <div class="flex items-center justify-between w-full px-8 pt-4 pb-4 border-b border-black">
                                 <p class="text-xl text-black">Cash</p>
@@ -286,7 +284,7 @@
                                 </span>
                             </div>
                             <div class="flex items-center justify-between w-full px-8 pt-4">
-                                <p class="text-3xl text-black">{{ isReturnMode ? 'Refund Total' : 'Total' }}</p>
+                                <p class="text-3xl text-black">{{ totalLabel }}</p>
                                 <p class="text-3xl text-black">{{ total }} LKR</p>
                             </div>
 
@@ -297,7 +295,7 @@
                             </div>
                         </div>
 
-                        <div class="w-full my-5" v-if="!isReturnMode">
+                        <div class="w-full my-5" v-if="!isReturnCashMode">
                             <div class="relative flex items-center">
                                 <!-- Input Field -->
                                 <label for="coupon" class="sr-only">Coupon Code</label>
@@ -350,7 +348,7 @@
                                             ? ' cursor-not-allowed'
                                             : ' cursor-pointer',
                                     ]">
-                                    <i class="pr-4 ri-add-circle-fill"></i> {{ isReturnMode ? 'Confirm Return' : 'Confirm Order' }}
+                                    <i class="pr-4 ri-add-circle-fill"></i> {{ confirmButtonLabel }}
                                 </button>
                             </div>
                         </div>
@@ -362,6 +360,10 @@
     <PosSuccessModel :open="isSuccessModalOpen" @update:open="handleModalOpenUpdate" :products="products"
         :employee="employee" :cashier="loggedInUser" :customer="customer" :orderid="displayOrderId" :cash="cash"
         :balance="balance" :subTotal="subtotal" :totalDiscount="totalDiscount" :total="total"
+        :payment-method="selectedPaymentMethod"
+        :is-return-exchange="isExchangeReturn"
+        :return-order-id="returnSale?.order_id || ''"
+        :exchange-credit="exchangeCredit"
         :custom_discount_type="custom_discount_type"
         :custom_discount="custom_discount" />
     <AlertModel v-model:open="isAlertModalOpen" :message="message" />
@@ -371,7 +373,7 @@
     <PosReturnModal v-model:open="isReturnModalOpen" @apply-return-items="handleApplyReturnItems" />
     <ReturnSuccessModal :open="isReturnSuccessModalOpen" @update:open="handleReturnSuccessOpenUpdate"
         :order-id="returnSale?.order_id || ''"
-        :cashier="loggedInUser" :customer="returnSale?.customer || {}" :products="products" :total="returnProcessedTotal"
+        :cashier="loggedInUser" :customer="returnSale?.customer || {}" :products="returnReceiptProducts" :total="returnProcessedTotal"
         :payment-method="returnPaymentMethod" />
     <Footer />
 </template>
@@ -411,8 +413,36 @@ const returnSale = ref(null);
 const isReturnMode = ref(false);
 const returnPaymentMethod = ref('Cash');
 const returnProcessedTotal = ref(0);
+const returnType = ref("cash_return");
+const exchangeCredit = ref(0);
+const exchangeReturnItems = ref([]);
+const returnReceiptProducts = ref([]);
+const isExchangeReturn = computed(() => {
+    return isReturnMode.value && returnType.value === "product_return";
+});
+const isReturnCashMode = computed(() => {
+    return isReturnMode.value && returnType.value === "cash_return";
+});
+const confirmButtonLabel = computed(() => {
+    if (!isReturnMode.value) {
+        return "Confirm Order";
+    }
+
+    if (isExchangeReturn.value) {
+        return "Confirm Exchange";
+    }
+
+    return "Confirm Return";
+});
+const totalLabel = computed(() => {
+    if (!isReturnMode.value) {
+        return "Total";
+    }
+
+    return isExchangeReturn.value ? "Payable Total" : "Refund Total";
+});
 const displayOrderId = computed(() => {
-    if (isReturnMode.value && returnSale.value?.order_id) {
+    if (isReturnCashMode.value && returnSale.value?.order_id) {
         return returnSale.value.order_id;
     }
 
@@ -523,6 +553,7 @@ const submitOrder = async () => {
             orderid: orderid.value,
             cash: cash.value,
             custom_discount: custom_discount.value,
+            custom_discount_type: custom_discount_type.value,
         });
         isSuccessModalOpen.value = true;
         console.log(response.data); // Handle success
@@ -547,15 +578,23 @@ const submitReturnOrder = async () => {
         return;
     }
 
-    if (products.value.length === 0) {
+    const returnItems = isExchangeReturn.value ? exchangeReturnItems.value : products.value;
+
+    if (returnItems.length === 0) {
         isAlertModalOpen.value = true;
         message.value = "Please select at least one item for return.";
         return;
     }
 
-    if (balance.value < 0) {
+    if (isExchangeReturn.value && products.value.length === 0) {
         isAlertModalOpen.value = true;
-        message.value = "Refund cash is not enough.";
+        message.value = "Please select replacement products for exchange.";
+        return;
+    }
+
+    if (selectedPaymentMethod.value === "cash" && Number(total.value) > 0 && Number(balance.value) < 0) {
+        isAlertModalOpen.value = true;
+        message.value = "Cash is not enough.";
         return;
     }
 
@@ -566,13 +605,15 @@ const submitReturnOrder = async () => {
             online: "Online",
         };
 
-        const method = methodMap[selectedPaymentMethod.value] || "Cash";
+        const method = returnType.value === "product_return"
+            ? "Exchange"
+            : (methodMap[selectedPaymentMethod.value] || "Cash");
         returnPaymentMethod.value = method;
 
         const response = await axios.post(route("pos.return.submit"), {
             sale_id: returnSale.value.id,
             refund_method: method,
-            items: products.value.map((item) => ({
+            items: returnItems.map((item) => ({
                 product_id: item.id,
                 quantity: Number(item.quantity || 0),
                 reason: item.return_reason || "Customer return",
@@ -580,6 +621,23 @@ const submitReturnOrder = async () => {
         });
 
         returnProcessedTotal.value = Number(response.data?.refund_total || 0);
+
+        if (isExchangeReturn.value) {
+            await axios.post("/pos/submit", {
+                customer: customer.value,
+                products: products.value,
+                employee_id: employee_id.value,
+                paymentMethod: selectedPaymentMethod.value,
+                userId: props.loggedInUser.id,
+                orderid: orderid.value,
+                cash: cash.value,
+                custom_discount: custom_discount.value,
+                custom_discount_type: custom_discount_type.value,
+            });
+
+            isSuccessModalOpen.value = true;
+            return;
+        }
 
         isReturnSuccessModalOpen.value = true;
     } catch (error) {
@@ -636,7 +694,13 @@ const total = computed(() => {
         customValue = customDiscount;
     }
 
-    return (subtotalValue - discountValue - customValue).toFixed(2);
+    const baseTotal = subtotalValue - discountValue - customValue;
+
+    if (isExchangeReturn.value) {
+        return Math.max(0, baseTotal - Number(exchangeCredit.value || 0)).toFixed(2);
+    }
+
+    return baseTotal.toFixed(2);
 });
 
 const balance = computed(() => {
@@ -688,7 +752,7 @@ const submitCoupon = async () => {
 
 // Automatically submit the barcode to the backend
 const submitBarcode = async () => {
-    if (isReturnMode.value) {
+    if (isReturnCashMode.value) {
         isAlertModalOpen.value = true;
         message.value = "Return mode is active. Refresh page to switch back to sales mode.";
         return;
@@ -791,7 +855,7 @@ const removeDiscount = (id) => {
 };
 
 const handleSelectedProducts = (selectedProducts) => {
-    if (isReturnMode.value) {
+    if (isReturnCashMode.value) {
         isAlertModalOpen.value = true;
         message.value = "Return mode is active. Finish or refresh before adding normal products.";
         return;
@@ -816,24 +880,39 @@ const handleSelectedProducts = (selectedProducts) => {
     });
 };
 
-const handleApplyReturnItems = ({ sale, products: selectedProducts, refundTotal }) => {
-    returnSale.value = sale;
-    isReturnMode.value = true;
-
-    appliedCoupon.value = null;
-    couponForm.code = "";
-    custom_discount.value = 0;
-    custom_discount_type.value = "fixed";
-
-    products.value = selectedProducts.map((item) => ({
+const handleApplyReturnItems = ({ sale, products: selectedProducts, refundTotal, returnType: selectedReturnType }) => {
+    const mappedReturnItems = selectedProducts.map((item) => ({
         ...item,
         apply_discount: false,
         discount: 0,
         discounted_price: item.selling_price,
     }));
 
+    returnSale.value = sale;
+    isReturnMode.value = true;
+    returnType.value = selectedReturnType || "cash_return";
+
+    appliedCoupon.value = null;
+    couponForm.code = "";
+    custom_discount.value = 0;
+    custom_discount_type.value = "fixed";
+    returnReceiptProducts.value = mappedReturnItems;
+
     returnProcessedTotal.value = Number(refundTotal || 0);
-    cash.value = Number(refundTotal || 0);
+    if (returnType.value === "product_return") {
+        exchangeReturnItems.value = mappedReturnItems;
+        exchangeCredit.value = Number(refundTotal || 0);
+        products.value = [];
+        selectedPaymentMethod.value = "cash";
+        cash.value = 0;
+        isSelectModalOpen.value = true;
+    } else {
+        exchangeReturnItems.value = [];
+        exchangeCredit.value = 0;
+        products.value = mappedReturnItems;
+        selectedPaymentMethod.value = "cash";
+        cash.value = Number(refundTotal || 0);
+    }
 };
 
 // const searchTerm = ref(form.barcode);
