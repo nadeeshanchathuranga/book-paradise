@@ -16,7 +16,7 @@
 
                         <div class="w-full h-full flex flex-col justify-center items-center space-y-4 mt-4">
                             <p class="text-2xl text-black">Refund amount: {{ Number(total || 0).toFixed(2) }} LKR</p>
-                            <img src="/images/checked.png" class="h-20 object-cover" />
+                            <img src="/images/checked.png" alt="Return success" class="h-20 object-cover" />
                         </div>
 
                         <div class="flex justify-center items-center space-x-3 pt-6 mt-4">
@@ -44,6 +44,11 @@ import {
     TransitionChild,
     TransitionRoot,
 } from "@headlessui/vue";
+import { computed } from "vue";
+import { usePage } from "@inertiajs/vue3";
+
+const page = usePage();
+const companyInfo = computed(() => page.props.companyInfo);
 
 const props = defineProps({
     open: { type: Boolean, required: true },
@@ -58,7 +63,7 @@ const props = defineProps({
 defineEmits(["update:open"]);
 
 const handlePrint = () => {
-    const rows = props.products
+    const productRows = props.products
         .map((item) => {
             return `
                 <tr>
@@ -71,31 +76,174 @@ const handlePrint = () => {
         .join("");
 
     const html = `
-        <html>
+        <!DOCTYPE html>
+        <html lang="en">
             <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <title>Return Receipt</title>
                 <style>
-                    body { font-family: Arial, sans-serif; padding: 10px; font-size: 12px; }
-                    .title { text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 10px; }
-                    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-                    th, td { border-bottom: 1px solid #ddd; padding: 6px; }
-                    .meta { display: flex; justify-content: space-between; margin: 8px 0; }
-                    .total { font-weight: bold; font-size: 14px; margin-top: 12px; display: flex; justify-content: space-between; }
+                    @media print {
+                        body {
+                            margin: 0;
+                            padding: 0 5mm 0 0;
+                            -webkit-print-color-adjust: exact;
+                        }
+                    }
+                    body {
+                        background-color: #ffffff;
+                        font-size: 12px;
+                        font-family: 'Arial', sans-serif;
+                        margin: 0;
+                        padding: 10px 5mm 10mm 7mm;
+                        color: #000;
+                    }
+                    .header {
+                        text-align: center;
+                        margin-bottom: 16px;
+                    }
+                    .header h1 {
+                        font-size: 20px;
+                        font-weight: bold;
+                        margin: 0;
+                    }
+                    .header p {
+                        font-size: 12px;
+                        margin: 4px 0;
+                    }
+                    .section {
+                        margin-bottom: 16px;
+                        padding-top: 8px;
+                        border-top: 1px solid #000;
+                    }
+                    .info-row {
+                        display: flex;
+                        justify-content: space-between;
+                        font-size: 14px;
+                        margin-top: 8px;
+                    }
+                    .info-row p {
+                        margin: 0;
+                        font-weight: bold;
+                    }
+                    .info-row small {
+                        font-weight: normal;
+                    }
+                    table {
+                        width: 100%;
+                        font-size: 12px;
+                        border-collapse: collapse;
+                        margin-top: 8px;
+                    }
+                    table th, table td {
+                        padding: 6px 8px;
+                    }
+                    table th {
+                        text-align: left;
+                    }
+                    table td {
+                        text-align: right;
+                    }
+                    table td:first-child {
+                        text-align: left;
+                    }
+                    .totals {
+                        border-top: 1px solid #000;
+                        padding-top: 8px;
+                        font-size: 12px;
+                    }
+                    .totals div {
+                        display: flex;
+                        justify-content: space-between;
+                        margin-bottom: 8px;
+                    }
+                    .totals .final {
+                        font-size: 14px;
+                        font-weight: bold;
+                    }
+                    .footer {
+                        text-align: center;
+                        font-size: 10px;
+                        margin-top: 16px;
+                    }
+                    .footer p {
+                        margin: 6px 0;
+                    }
                 </style>
             </head>
             <body>
-                <div class="title">RETURN RECEIPT</div>
-                <div class="meta"><span>Order: ${props.orderId || "-"}</span><span>Date: ${new Date().toLocaleDateString()}</span></div>
-                <div class="meta"><span>Customer: ${props.customer?.name || "N/A"}</span><span>Cashier: ${props.cashier?.name || "N/A"}</span></div>
-                <div class="meta"><span>Refund Method: ${props.paymentMethod}</span><span></span></div>
-                <table>
-                    <thead>
-                        <tr><th style="text-align:left;">Item</th><th style="text-align:center;">Qty</th><th style="text-align:right;">Unit</th></tr>
-                    </thead>
-                    <tbody>${rows}</tbody>
-                </table>
-                <div class="total"><span>Total Refund</span><span>${Number(props.total || 0).toFixed(2)} LKR</span></div>
-                <p style="text-align:center;margin-top:10px;">Powered by JAAN Network Ltd.</p>
+                <div class="receipt-container">
+                    <div class="header">
+                        <img src="/images/billlogo.png" style="width: 230px; height: 100px;" />
+                        ${companyInfo?.value?.name ? `<h1>${companyInfo.value.name}</h1>` : ""}
+                        ${companyInfo?.value?.address ? `<p>${companyInfo.value.address}</p>` : ""}
+                        ${(companyInfo?.value?.phone || companyInfo?.value?.phone2 || companyInfo?.value?.email)
+                            ? `<p>${companyInfo.value.phone || ""} ${companyInfo.value.phone2 || ""} ${companyInfo.value.email || ""}</p>`
+                            : ""}
+                    </div>
+
+                    <div class="section">
+                        <div class="info-row">
+                            <div>
+                                <p>Date:</p>
+                                <small>${new Date().toLocaleDateString()}</small>
+                            </div>
+                            <div>
+                                <p>Order No:</p>
+                                <small>${props.orderId || "-"}</small>
+                            </div>
+                        </div>
+                        <div class="info-row">
+                            <div>
+                                <p>Customer:</p>
+                                <small>${props.customer?.name || "N/A"}</small>
+                            </div>
+                            <div>
+                                <p>Cashier:</p>
+                                <small>${props.cashier?.name || "N/A"}</small>
+                            </div>
+                        </div>
+                        <div class="info-row">
+                            <div>
+                                <p>Refund Method:</p>
+                                <small>${props.paymentMethod || "Cash"}</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <table>
+                            <colgroup>
+                                <col style="width:60%;">
+                                <col style="width:15%;">
+                                <col style="width:25%;">
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th>Items</th>
+                                    <th style="text-align:center;">Qty</th>
+                                    <th style="text-align:right;">Price</th>
+                                </tr>
+                            </thead>
+                            <tbody style="font-size:11px;">
+                                ${productRows}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="totals">
+                        <div class="final">
+                            <span>Total Refund</span>
+                            <span>${Number(props.total || 0).toFixed(2)} LKR</span>
+                        </div>
+                    </div>
+
+                    <div class="footer">
+                        <p>THANK YOU COME AGAIN</p>
+                        <p style="font-weight: bold;">Powered by JAAN Network Ltd.</p>
+                        <p>${new Date().toLocaleTimeString()}</p>
+                    </div>
+                </div>
             </body>
         </html>
     `;
