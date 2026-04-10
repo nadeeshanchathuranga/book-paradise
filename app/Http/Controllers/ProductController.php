@@ -252,6 +252,7 @@ $productsQuery = Product::with('category', 'color', 'size', 'supplier')
                     'quantity' => $stockQuantity,
                     'transaction_date' => now(),
                     'supplier_id' => $validated['supplier_id'] ?? null,
+                    'reason' => 'Initial stock',
                 ]);
             }
 

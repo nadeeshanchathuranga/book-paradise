@@ -56,6 +56,15 @@
     >
       <i class="pr-4 ri-add-circle-fill"></i> Add Promotion
     </Link>
+    <Link
+      href="/reports/stock-report"
+      :class="HasRole(['Admin'])
+        ? 'px-12 py-4 text-2xl font-bold tracking-wider text-white uppercase bg-green-600 rounded-xl'
+        : 'px-12 py-4 text-2xl font-bold tracking-wider text-white uppercase bg-green-600 cursor-not-allowed rounded-xl'"
+      :title="HasRole(['Admin']) ? '' : 'You do not have permission to view stock reports'"
+    >
+      <i class="pr-4 ri-file-text-line"></i> Stock Report
+    </Link>
         <p
           @click="
             () => {
