@@ -47,7 +47,7 @@ class EmployeeController extends Controller
 
 
         $validated = $request->validate([
-            'name' => 'required|string|max:255|regex:/^[a-zA-Z\s]+$/',
+            'name' => 'required|string|max:255|regex:/^[a-zA-Z0-9\s]+$/',
             'address' => 'nullable|string|max:255',
             'email' => 'nullable|email|max:255|regex:/^[\w\.-]+@[a-zA-Z0-9\.-]+\.[a-zA-Z]{2,6}$/|unique:employees,email',
             'phone' => 'nullable|string|regex:/^\d{10}$/',
