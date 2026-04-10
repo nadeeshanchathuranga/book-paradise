@@ -70,6 +70,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('suppliers', SupplierController::class);
     Route::post('suppliers/{supplier}', [SupplierController::class, 'update']);
     Route::post('products/{product}', [ProductController::class, 'update']);
+    Route::post('products/{product}/adjust-stock', [ProductController::class, 'adjustStock'])->name('products.adjustStock');
     Route::post('products-variant', [ProductController::class, 'productVariantStore'])->name('productVariant');
 
     Route::post('products-size', [ProductController::class, 'sizeStore'])->name('productSize');

@@ -285,7 +285,42 @@
                   >
                     <i class="ri-file-copy-2-line"></i>
                   </button>
-
+                  <button
+                    :disabled="!HasRole(['Admin'])"
+                    @click="
+                      () => {
+                        if (HasRole(['Admin'])) {
+                          openStockModal(product, 'add');
+                        }
+                      }
+                    "
+                    :class="{
+                      'cursor-not-allowed opacity-50': !HasRole(['Admin']),
+                      'cursor-pointer hover:bg-green-600 hover:text-white':
+                        HasRole(['Admin']),
+                    }"
+                    class="flex items-center justify-center w-10 h-10 text-gray-800 transition duration-200 bg-gray-100 rounded-full"
+                  >
+                    <i class="ri-add-circle-line"></i>
+                  </button>
+                  <button
+                    :disabled="!HasRole(['Admin'])"
+                    @click="
+                      () => {
+                        if (HasRole(['Admin'])) {
+                          openStockModal(product, 'deduct');
+                        }
+                      }
+                    "
+                    :class="{
+                      'cursor-not-allowed opacity-50': !HasRole(['Admin']),
+                      'cursor-pointer hover:bg-green-600 hover:text-white':
+                        HasRole(['Admin']),
+                    }"
+                    class="flex items-center justify-center w-10 h-10 text-gray-800 transition duration-200 bg-gray-100 rounded-full"
+                  >
+                    <i class="ri-subtract-line"></i>
+                  </button>
                   <button
                     :disabled="!HasRole(['Admin'])"
                     @click="
@@ -413,6 +448,12 @@
     v-model:open="isViewModalOpen"
     :selected-product="selectedProduct"
   />
+  <ProductStockAdjustModel
+    v-model:open="isStockModalOpen"
+    :selected-product="stockModalProduct"
+    :action="stockModalAction"
+    :suppliers="suppliers"
+  />
   <ProductDeleteModel
     v-model:open="isDeleteModalOpen"
     :selected-product="selectedProduct"
@@ -435,6 +476,7 @@ import ProductDuplicateModel from "@/Components/custom/ProductDuplicateModel.vue
 import ProductUpdateModel from "@/Components/custom/ProductUpdateModel.vue";
 import ProductViewModel from "@/Components/custom/ProductViewModel.vue";
 import ProductDeleteModel from "@/Components/custom/ProductDeleteModel.vue";
+import ProductStockAdjustModel from "@/Components/custom/ProductStockAdjustModel.vue";
 import { debounce } from "lodash";
 import { HasRole } from "@/Utils/Permissions";
 
@@ -442,7 +484,10 @@ const isCreateModalOpen = ref(false);
 const isEditModalOpen = ref(false);
 const isDuplicateModalOpen = ref(false);
 const isViewModalOpen = ref(false);
+const isStockModalOpen = ref(false);
 const selectedProduct = ref(null);
+const stockModalProduct = ref(null);
+const stockModalAction = ref("add");
 const isDeleteModalOpen = ref(false);
 
 const emit = defineEmits(["update:open"]);
@@ -465,6 +510,12 @@ const openViewModal = (product) => {
 const openDeleteModal = (product) => {
   selectedProduct.value = product;
   isDeleteModalOpen.value = true;
+};
+
+const openStockModal = (product, action) => {
+  stockModalProduct.value = product;
+  stockModalAction.value = action;
+  isStockModalOpen.value = true;
 };
 
 const props = defineProps({
