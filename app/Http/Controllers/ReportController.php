@@ -173,6 +173,55 @@ class ReportController extends Controller
 
 
 
+    public function stockReport(Request $request)
+    {
+        if (!Gate::allows('hasRole', ['Admin'])) {
+            abort(403, 'Unauthorized');
+        }
+
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
+        $stockQuery = StockTransaction::with('product.supplier');
+
+        if ($startDate) {
+            $stockQuery->whereDate('transaction_date', '>=', $startDate);
+        }
+
+        if ($endDate) {
+            $stockQuery->whereDate('transaction_date', '<=', $endDate);
+        }
+
+        $stockTransactions = $stockQuery->orderBy('transaction_date', 'desc')->get();
+        $products = Product::with('supplier')->orderBy('name', 'asc')->get();
+
+        $productSummaries = $products->map(function ($product) use ($stockTransactions) {
+            $productTransactions = $stockTransactions->where('product_id', $product->id);
+
+            return [
+                'id' => $product->id,
+                'name' => $product->name,
+                'code' => $product->code,
+                'supplier_name' => $product->supplier?->name,
+                'current_stock' => $product->stock_quantity ?? 0,
+                'added_qty' => $productTransactions->where('transaction_type', 'Added')->sum('quantity'),
+                'deducted_qty' => $productTransactions->where('transaction_type', 'Deducted')->sum('quantity'),
+            ];
+        });
+
+        return Inertia::render('Reports/StockReport', [
+            'productSummaries' => $productSummaries,
+            'stockTransactions' => $stockTransactions,
+            'totalProducts' => $products->count(),
+            'totalTransactions' => $stockTransactions->count(),
+            'totalAdded' => $stockTransactions->where('transaction_type', 'Added')->sum('quantity'),
+            'totalDeducted' => $stockTransactions->where('transaction_type', 'Deducted')->sum('quantity'),
+            'currentStock' => $products->sum('stock_quantity'),
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+        ]);
+    }
+
     public function searchByCode(Request $request)
     {
         $code = $request->input('code');
