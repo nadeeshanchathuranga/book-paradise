@@ -18,7 +18,7 @@
                 </div>
                 <div class="flex items-center justify-between w-full space-x-4">
                     <p class="text-3xl font-bold tracking-wide text-black">
-                        Order ID : #{{ orderid  }}
+                        Order ID : #{{ displayOrderId }}
                     </p>
                     <p class="text-3xl text-black cursor-pointer">
                         <i @click="refreshData" class="ri-restart-line"></i>
@@ -74,10 +74,16 @@
                     <div class="flex flex-col items-start justify-center w-full md:px-12 px-4">
                         <div class="flex items-center justify-between w-full">
                             <h2 class="md:text-5xl text-4xl font-bold text-black">Billing Details</h2>
-                            <span class="flex cursor-pointer" @click="isSelectModalOpen = true">
-                                <p class="text-xl text-blue-600 font-bold">User Manual</p>
-                                <img src="/images/selectpsoduct.svg" class="w-6 h-6 ml-2" />
-                            </span>
+                            <div class="flex items-center gap-4">
+                                <button class="rounded bg-emerald-600 px-3 py-2 text-sm font-bold text-white"
+                                    @click="isReturnModalOpen = true">
+                                    Return
+                                </button>
+                                <span class="flex cursor-pointer" @click="isSelectModalOpen = true">
+                                    <p class="text-xl text-blue-600 font-bold">User Manual</p>
+                                    <img src="/images/selectpsoduct.svg" class="w-6 h-6 ml-2" />
+                                </span>
+                            </div>
                         </div>
 
                         <div class="flex items-end justify-between w-full my-5 border-2 border-black rounded-2xl">
@@ -196,7 +202,8 @@
                                                 item.discount &&
                                                 item.discount > 0 &&
                                                 item.apply_discount == false &&
-                                                !appliedCoupon
+                                                !appliedCoupon &&
+                                                !isReturnMode
                                             "
                                                 class="cursor-pointer py-1 text-center px-4 bg-green-600 rounded-xl font-bold text-white tracking-wider">
                                                 Apply {{ item.discount }}% off
@@ -206,7 +213,8 @@
                                                 item.discount &&
                                                 item.discount > 0 &&
                                                 item.apply_discount == true &&
-                                                !appliedCoupon
+                                                !appliedCoupon &&
+                                                !isReturnMode
                                             " @click="removeDiscount(item.id)"
                                                 class="cursor-pointer py-1 text-center px-4 bg-red-600 rounded-xl font-bold text-white tracking-wider">
                                                 Remove {{ item.discount }}% Off
@@ -252,9 +260,11 @@
                                 <p class="text-xl text-black">Custom Discount</p>
                                 <span class="flex items-center">
                                     <CurrencyInput v-model="custom_discount" @blur="validateCustomDiscount"
-                                        placeholder="Enter value" class=" rounded-md px-2 py-1 text-black text-md" />
+                                        placeholder="Enter value" class=" rounded-md px-2 py-1 text-black text-md"
+                                        :disabled="isReturnMode" />
                                     <select v-model="custom_discount_type"
-                                        class="ml-2 px-8 border-black rounded-md text-black   py-1 text-md  ">
+                                        class="ml-2 px-8 border-black rounded-md text-black   py-1 text-md"
+                                        :disabled="isReturnMode">
                                         <option value="percent">%</option>
                                         <option value="fixed">Rs</option>
                                     </select>
@@ -276,7 +286,7 @@
                                 </span>
                             </div>
                             <div class="flex items-center justify-between w-full px-8 pt-4">
-                                <p class="text-3xl text-black">Total</p>
+                                <p class="text-3xl text-black">{{ isReturnMode ? 'Refund Total' : 'Total' }}</p>
                                 <p class="text-3xl text-black">{{ total }} LKR</p>
                             </div>
 
@@ -287,7 +297,7 @@
                             </div>
                         </div>
 
-                        <div class="w-full my-5">
+                        <div class="w-full my-5" v-if="!isReturnMode">
                             <div class="relative flex items-center">
                                 <!-- Input Field -->
                                 <label for="coupon" class="sr-only">Coupon Code</label>
@@ -340,7 +350,7 @@
                                             ? ' cursor-not-allowed'
                                             : ' cursor-pointer',
                                     ]">
-                                    <i class="pr-4 ri-add-circle-fill"></i> Confirm Order
+                                    <i class="pr-4 ri-add-circle-fill"></i> {{ isReturnMode ? 'Confirm Return' : 'Confirm Order' }}
                                 </button>
                             </div>
                         </div>
@@ -350,7 +360,7 @@
         </div>
     </div>
     <PosSuccessModel :open="isSuccessModalOpen" @update:open="handleModalOpenUpdate" :products="products"
-        :employee="employee" :cashier="loggedInUser" :customer="customer" :orderid="orderid" :cash="cash"
+        :employee="employee" :cashier="loggedInUser" :customer="customer" :orderid="displayOrderId" :cash="cash"
         :balance="balance" :subTotal="subtotal" :totalDiscount="totalDiscount" :total="total"
         :custom_discount_type="custom_discount_type"
         :custom_discount="custom_discount" />
@@ -358,6 +368,11 @@
 
     <SelectProductModel v-model:open="isSelectModalOpen" :allcategories="allcategories" :colors="colors" :sizes="sizes"
         @selected-products="handleSelectedProducts" />
+    <PosReturnModal v-model:open="isReturnModalOpen" @apply-return-items="handleApplyReturnItems" />
+    <ReturnSuccessModal :open="isReturnSuccessModalOpen" @update:open="handleReturnSuccessOpenUpdate"
+        :order-id="returnSale?.order_id || ''"
+        :cashier="loggedInUser" :customer="returnSale?.customer || {}" :products="products" :total="returnProcessedTotal"
+        :payment-method="returnPaymentMethod" />
     <Footer />
 </template>
 <script setup>
@@ -374,6 +389,8 @@ import axios from "axios";
 import CurrencyInput from "@/Components/custom/CurrencyInput.vue";
 import SelectProductModel from "@/Components/custom/SelectProductModel.vue";
 import ProductAutoComplete from "@/Components/custom/ProductAutoComplete.vue";
+import PosReturnModal from "@/Components/custom/PosReturnModal.vue";
+import ReturnSuccessModal from "@/Components/custom/ReturnSuccessModal.vue";
 import { generateOrderId } from "@/Utils/Other.js";
 
 const product = ref(null);
@@ -386,14 +403,34 @@ const appliedCoupon = ref(null);
 const cash = ref(0);
 const custom_discount = ref(0);
 const isSelectModalOpen = ref(false);
+const isReturnModalOpen = ref(false);
+const isReturnSuccessModalOpen = ref(false);
 const custom_discount_type = ref('percent');
 const orderid = computed(() => generateOrderId());
+const returnSale = ref(null);
+const isReturnMode = ref(false);
+const returnPaymentMethod = ref('Cash');
+const returnProcessedTotal = ref(0);
+const displayOrderId = computed(() => {
+    if (isReturnMode.value && returnSale.value?.order_id) {
+        return returnSale.value.order_id;
+    }
+
+    return orderid.value;
+});
 
 
 // const balance = ref(0);
 
 const handleModalOpenUpdate = (newValue) => {
     isSuccessModalOpen.value = newValue;
+    if (!newValue) {
+        refreshData();
+    }
+};
+
+const handleReturnSuccessOpenUpdate = (newValue) => {
+    isReturnSuccessModalOpen.value = newValue;
     if (!newValue) {
         refreshData();
     }
@@ -464,6 +501,11 @@ const orderId = computed(() => {
 });
 
 const submitOrder = async () => {
+    if (isReturnMode.value) {
+        await submitReturnOrder();
+        return;
+    }
+
     // if (window.confirm("Are you sure you want to confirm the order?")) {
     console.log(products.value);
     if (balance.value < 0) {
@@ -497,6 +539,55 @@ const submitOrder = async () => {
     }
 };
 // };
+
+const submitReturnOrder = async () => {
+    if (!returnSale.value?.id) {
+        isAlertModalOpen.value = true;
+        message.value = "Please select a return order first.";
+        return;
+    }
+
+    if (products.value.length === 0) {
+        isAlertModalOpen.value = true;
+        message.value = "Please select at least one item for return.";
+        return;
+    }
+
+    if (balance.value < 0) {
+        isAlertModalOpen.value = true;
+        message.value = "Refund cash is not enough.";
+        return;
+    }
+
+    try {
+        const methodMap = {
+            cash: "Cash",
+            card: "Card",
+            online: "Online",
+        };
+
+        const method = methodMap[selectedPaymentMethod.value] || "Cash";
+        returnPaymentMethod.value = method;
+
+        const response = await axios.post(route("pos.return.submit"), {
+            sale_id: returnSale.value.id,
+            refund_method: method,
+            items: products.value.map((item) => ({
+                product_id: item.id,
+                quantity: Number(item.quantity || 0),
+                reason: item.return_reason || "Customer return",
+            })),
+        });
+
+        returnProcessedTotal.value = Number(response.data?.refund_total || 0);
+
+        isReturnSuccessModalOpen.value = true;
+    } catch (error) {
+        const data = error.response?.data;
+        isAlertModalOpen.value = true;
+        message.value = data?.message || "Failed to submit return.";
+    }
+};
 
 const subtotal = computed(() => {
     return products.value
@@ -597,6 +688,12 @@ const submitCoupon = async () => {
 
 // Automatically submit the barcode to the backend
 const submitBarcode = async () => {
+    if (isReturnMode.value) {
+        isAlertModalOpen.value = true;
+        message.value = "Return mode is active. Refresh page to switch back to sales mode.";
+        return;
+    }
+
     try {
         // Send POST request to the backend
         const response = await axios.post(route("pos.getProduct"), {
@@ -694,6 +791,12 @@ const removeDiscount = (id) => {
 };
 
 const handleSelectedProducts = (selectedProducts) => {
+    if (isReturnMode.value) {
+        isAlertModalOpen.value = true;
+        message.value = "Return mode is active. Finish or refresh before adding normal products.";
+        return;
+    }
+
     selectedProducts.forEach((fetchedProduct) => {
         const existingProduct = products.value.find(
             (item) => item.id === fetchedProduct.id
@@ -711,6 +814,26 @@ const handleSelectedProducts = (selectedProducts) => {
             });
         }
     });
+};
+
+const handleApplyReturnItems = ({ sale, products: selectedProducts, refundTotal }) => {
+    returnSale.value = sale;
+    isReturnMode.value = true;
+
+    appliedCoupon.value = null;
+    couponForm.code = "";
+    custom_discount.value = 0;
+    custom_discount_type.value = "fixed";
+
+    products.value = selectedProducts.map((item) => ({
+        ...item,
+        apply_discount: false,
+        discount: 0,
+        discounted_price: item.selling_price,
+    }));
+
+    returnProcessedTotal.value = Number(refundTotal || 0);
+    cash.value = Number(refundTotal || 0);
 };
 
 // const searchTerm = ref(form.barcode);

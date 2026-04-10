@@ -6,7 +6,9 @@ use App\Models\Category;
 use App\Models\Color;
 use App\Models\Coupon;
 use App\Models\Customer;
+use App\Models\Payment;
 use App\Models\Product;
+use App\Models\ReturnItem;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\Size;
@@ -16,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class PosController extends Controller
@@ -85,6 +88,183 @@ class PosController extends Controller
         }
 
         return response()->json(['success' => 'Coupon applied successfully.', 'coupon' => $coupon]);
+    }
+
+    public function getReturnOrders()
+    {
+        if (!Gate::allows('hasRole', ['Admin', 'Cashier'])) {
+            abort(403, 'Unauthorized');
+        }
+
+        $sales = Sale::with('customer')
+            ->whereNotNull('order_id')
+            ->orderBy('created_at', 'desc')
+            ->limit(200)
+            ->get(['id', 'order_id', 'customer_id', 'total_amount', 'discount', 'payment_method', 'sale_date', 'created_at']);
+
+        return response()->json(['sales' => $sales]);
+    }
+
+    public function getReturnOrderItems(Sale $sale)
+    {
+        if (!Gate::allows('hasRole', ['Admin', 'Cashier'])) {
+            abort(403, 'Unauthorized');
+        }
+
+        $saleItems = SaleItem::with('product')
+            ->where('sale_id', $sale->id)
+            ->get();
+
+        $grouped = $saleItems
+            ->groupBy('product_id')
+            ->map(function ($items, $productId) use ($sale) {
+                $soldQuantity = (int) $items->sum('quantity');
+                $returnedQuantity = (int) ReturnItem::where('sale_id', $sale->id)
+                    ->where('product_id', $productId)
+                    ->sum('quantity');
+                $availableQuantity = max(0, $soldQuantity - $returnedQuantity);
+
+                if ($availableQuantity < 1) {
+                    return null;
+                }
+
+                $first = $items->first();
+                $unitPrice = (float) $items->avg('unit_price');
+
+                return [
+                    'product_id' => (int) $productId,
+                    'product' => $first?->product,
+                    'sold_quantity' => $soldQuantity,
+                    'returned_quantity' => $returnedQuantity,
+                    'available_quantity' => $availableQuantity,
+                    'unit_price' => $unitPrice,
+                ];
+            })
+            ->filter()
+            ->values();
+
+        return response()->json([
+            'sale' => $sale->load('customer'),
+            'items' => $grouped,
+        ]);
+    }
+
+    public function submitReturn(Request $request)
+    {
+        if (!Gate::allows('hasRole', ['Admin', 'Cashier'])) {
+            abort(403, 'Unauthorized');
+        }
+
+        $validated = $request->validate([
+            'sale_id' => 'required|exists:sales,id',
+            'refund_method' => 'required|in:Cash,Card,Online',
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.reason' => 'nullable|string|max:1000',
+        ]);
+
+        $sale = Sale::findOrFail($validated['sale_id']);
+
+        DB::beginTransaction();
+
+        try {
+            $refundTotal = 0;
+
+            foreach ($validated['items'] as $returnItemData) {
+                $productId = (int) $returnItemData['product_id'];
+                $returnQty = (int) $returnItemData['quantity'];
+                $reason = $returnItemData['reason'] ?? null;
+
+                $soldQty = (int) SaleItem::where('sale_id', $sale->id)
+                    ->where('product_id', $productId)
+                    ->sum('quantity');
+
+                $alreadyReturnedQty = (int) ReturnItem::where('sale_id', $sale->id)
+                    ->where('product_id', $productId)
+                    ->sum('quantity');
+
+                $availableQty = $soldQty - $alreadyReturnedQty;
+
+                if ($soldQty < 1 || $returnQty > $availableQty) {
+                    throw ValidationException::withMessages([
+                        'items' => ["Return quantity exceeds available quantity for product ID {$productId}."],
+                    ]);
+                }
+
+                $unitPrice = (float) SaleItem::where('sale_id', $sale->id)
+                    ->where('product_id', $productId)
+                    ->avg('unit_price');
+
+                if ($unitPrice <= 0) {
+                    $unitPrice = (float) optional(Product::find($productId))->selling_price;
+                }
+
+                $refundAmount = $unitPrice * $returnQty;
+                $refundTotal += $refundAmount;
+
+                ReturnItem::create([
+                    'sale_id' => $sale->id,
+                    'customer_id' => $sale->customer_id,
+                    'product_id' => $productId,
+                    'quantity' => $returnQty,
+                    'reason' => $reason ?: 'Customer return',
+                    'return_date' => now()->toDateString(),
+                ]);
+
+                $product = Product::lockForUpdate()->find($productId);
+                if ($product) {
+                    $product->stock_quantity = (int) $product->stock_quantity + $returnQty;
+
+                    if (!is_null($product->total_quantity)) {
+                        $product->total_quantity = (int) $product->total_quantity + $returnQty;
+                    }
+
+                    $product->save();
+
+                    StockTransaction::create([
+                        'product_id' => $productId,
+                        'transaction_type' => 'Added',
+                        'quantity' => $returnQty,
+                        'transaction_date' => now(),
+                        'supplier_id' => $product->supplier_id ?? null,
+                        'reason' => $reason ?: 'Customer return',
+                    ]);
+                }
+            }
+
+            $paymentMethodMap = [
+                'Cash' => 'Cash',
+                'Card' => 'Credit Card',
+                'Online' => 'Online',
+            ];
+
+            Payment::create([
+                'sale_id' => $sale->id,
+                'amount' => -1 * round($refundTotal, 2),
+                'method' => $paymentMethodMap[$validated['refund_method']] ?? 'Cash',
+                'payment_date' => now()->toDateString(),
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Return processed successfully.',
+                'refund_total' => round($refundTotal, 2),
+                'sale' => $sale->only(['id', 'order_id', 'sale_date']),
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            if ($e instanceof ValidationException) {
+                throw $e;
+            }
+
+            return response()->json([
+                'message' => 'An error occurred while processing the return.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function submit(Request $request)

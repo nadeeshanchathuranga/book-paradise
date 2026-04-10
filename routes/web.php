@@ -83,6 +83,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/pos', [PosController::class, 'index'])->name('pos.index');
     Route::post('/pos', [PosController::class, 'getProduct'])->name('pos.getProduct');
     Route::post('/get-coupon', [PosController::class, 'getCoupon'])->name('pos.getCoupon');
+    Route::get('/pos/returns/orders', [PosController::class, 'getReturnOrders'])->name('pos.return.orders');
+    Route::get('/pos/returns/orders/{sale}/items', [PosController::class, 'getReturnOrderItems'])->name('pos.return.items');
+    Route::post('/pos/returns/submit', [PosController::class, 'submitReturn'])->name('pos.return.submit');
     Route::post('/pos/submit', [PosController::class, 'submit'])->name('pos.checkout');
     Route::resource('payment', PaymentController::class);
     Route::resource('reports', ReportController::class);
