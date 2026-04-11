@@ -169,7 +169,8 @@
               v-model="form.barcode"
               type="text"
               id="barcode"
-              class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200"
+              readonly
+              class="block w-full mt-1 border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-700 cursor-not-allowed"
             />
             <span v-if="form.errors.barcode" class="text-sm text-red-500">{{
               form.errors.barcode
