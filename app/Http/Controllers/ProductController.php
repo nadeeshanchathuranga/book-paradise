@@ -49,7 +49,8 @@ $productsQuery = Product::with('category', 'color', 'size', 'supplier')
             ->when($query, function ($queryBuilder) use ($query) {
                 $queryBuilder->where(function ($subQuery) use ($query) {
                     $subQuery->where('name', 'like', "%{$query}%")
-                        ->orWhere('code', 'like', "%{$query}%");
+                        ->orWhere('code', 'like', "%{$query}%")
+                        ->orWhere('barcode', 'like', "%{$query}%");
                 });
             })
             ->when($selectedColor, function ($queryBuilder) use ($selectedColor) {
@@ -100,7 +101,8 @@ $productsQuery = Product::with('category', 'color', 'size', 'supplier')
             ->when($query, function ($queryBuilder) use ($query) {
                 $queryBuilder->where(function ($subQuery) use ($query) {
                     $subQuery->where('name', 'like', "%{$query}%")
-                        ->orWhere('code', 'like', "%{$query}%");
+                        ->orWhere('code', 'like', "%{$query}%")
+                        ->orWhere('barcode', 'like', "%{$query}%");
                 });
             })
             ->when($selectedColor, function ($queryBuilder) use ($selectedColor) {
@@ -576,7 +578,8 @@ public function fetchProducts2(Request $request)
         ->when($query, function ($qb) use ($query) {
             $qb->where(function ($sub) use ($query) {
                 $sub->where('products.name', 'like', "%{$query}%")
-                    ->orWhere('products.code', 'like', "%{$query}%");
+                    ->orWhere('products.code', 'like', "%{$query}%")
+                    ->orWhere('products.barcode', 'like', "%{$query}%");
             });
         })
         ->when($selectedColor, function ($qb) use ($selectedColor) {
