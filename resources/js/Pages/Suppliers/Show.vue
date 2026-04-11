@@ -216,6 +216,60 @@
               <p v-if="paymentForm.errors.payment_method" class="text-red-500 text-xs mt-1">{{ paymentForm.errors.payment_method }}</p>
             </div>
 
+            <!-- Bank Account (Bank Transfer / Online / Cheque) -->
+            <div v-if="needsBank(paymentForm.payment_method)">
+              <label class="block text-sm font-medium text-gray-600 mb-1">
+                Bank Account <span class="text-red-500">*</span>
+              </label>
+              <select
+                v-model="paymentForm.bank_account_id"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
+                <option value="">Select account...</option>
+                <option v-for="ba in bankAccounts" :key="ba.id" :value="ba.id">
+                  {{ ba.name }} ({{ ba.bank_name }}) — Rs. {{ Number(ba.current_balance).toLocaleString() }}
+                </option>
+              </select>
+              <p v-if="paymentForm.errors.bank_account_id" class="text-red-500 text-xs mt-1">{{ paymentForm.errors.bank_account_id }}</p>
+            </div>
+
+            <!-- Cheque Fields -->
+            <template v-if="isCheque(paymentForm.payment_method)">
+              <div class="bg-purple-50 border border-purple-200 rounded-xl p-4 space-y-3">
+                <p class="text-xs font-bold text-purple-700 uppercase tracking-widest">Cheque Details</p>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Cheque No. <span class="text-red-500">*</span></label>
+                    <input v-model="paymentForm.cheque_number" type="text" placeholder="e.g. 001234"
+                      class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                    <p v-if="paymentForm.errors.cheque_number" class="text-red-500 text-xs mt-1">{{ paymentForm.errors.cheque_number }}</p>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Bank Name <span class="text-red-500">*</span></label>
+                    <input v-model="paymentForm.cheque_bank_name" type="text" placeholder="e.g. BOC"
+                      class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                    <p v-if="paymentForm.errors.cheque_bank_name" class="text-red-500 text-xs mt-1">{{ paymentForm.errors.cheque_bank_name }}</p>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Branch</label>
+                    <input v-model="paymentForm.cheque_branch" type="text" placeholder="Branch"
+                      class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Cheque Date <span class="text-red-500">*</span></label>
+                    <input v-model="paymentForm.cheque_date" type="date"
+                      class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                    <p v-if="paymentForm.errors.cheque_date" class="text-red-500 text-xs mt-1">{{ paymentForm.errors.cheque_date }}</p>
+                  </div>
+                  <div class="col-span-2">
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Due / Clearance Date (PDC)</label>
+                    <input v-model="paymentForm.due_date" type="date"
+                      class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                  </div>
+                </div>
+              </div>
+            </template>
+
             <!-- Note -->
             <div>
               <label class="block text-sm font-medium text-gray-600 mb-1">Note</label>
@@ -255,6 +309,7 @@
                 <tr class="bg-gradient-to-r from-green-600 via-green-500 to-green-600 text-white text-[14px]">
                   <th class="p-3 text-left uppercase font-semibold tracking-wide">Date</th>
                   <th class="p-3 text-left uppercase font-semibold tracking-wide">Method</th>
+                  <th class="p-3 text-left uppercase font-semibold tracking-wide">Bank / Cheque</th>
                   <th class="p-3 text-right uppercase font-semibold tracking-wide">Amount</th>
                   <th class="p-3 text-left uppercase font-semibold tracking-wide">Note</th>
                   <th class="p-3 text-center uppercase font-semibold tracking-wide">Action</th>
@@ -271,6 +326,9 @@
                     <span :class="methodBadge(payment.payment_method)" class="px-2 py-0.5 rounded-full text-xs font-semibold">
                       {{ payment.payment_method }}
                     </span>
+                  </td>
+                  <td class="p-3 border-t border-gray-200 text-xs text-gray-600">
+                    {{ payment.bank_account ? payment.bank_account.name : '—' }}
                   </td>
                   <td class="p-3 border-t border-gray-200 text-right font-bold text-green-700">
                     {{ formatCurrency(payment.amount) }}
@@ -343,16 +401,28 @@ const props = defineProps({
   totalPurchaseCost: Number,
   totalPaid:         Number,
   balance:           Number,
+  bankAccounts:      Array,
 });
 
 // ── Payment form ──────────────────────────────────────
 const today = new Date().toISOString().slice(0, 10);
 const paymentForm = useForm({
-  amount:         "",
-  payment_date:   today,
-  payment_method: "",
-  note:           "",
+  amount:           "",
+  payment_date:     today,
+  payment_method:   "",
+  note:             "",
+  // Bank fields
+  bank_account_id:  "",
+  // Cheque fields
+  cheque_number:    "",
+  cheque_bank_name: "",
+  cheque_branch:    "",
+  cheque_date:      today,
+  due_date:         "",
 });
+
+const needsBank    = (m) => ['Bank Transfer', 'Online', 'Cheque'].includes(m);
+const isCheque     = (m) => m === 'Cheque';
 
 function submitPayment() {
   paymentForm.post(route("supplier.payments.store", props.supplier.id), {
@@ -416,7 +486,7 @@ onMounted(() => {
       dom: "Bfrtip",
       pageLength: 10,
       buttons: [],
-      columnDefs: [{ targets: [4], orderable: false, searchable: false }],
+      columnDefs: [{ targets: [5], orderable: false, searchable: false }],
       language: { search: "" },
       initComplete: function () {
         $("div.dataTables_filter input").attr("placeholder", "Search ...");
