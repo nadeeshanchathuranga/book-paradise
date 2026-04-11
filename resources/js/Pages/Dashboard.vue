@@ -351,6 +351,26 @@
         </div>
       </Link>
 
+      <Link href="/accounting" v-if="HasRole(['Admin', 'Manager'])">
+        <div class="dashboard-card bg-[#1e3a5f]">
+          <div class="card-content">
+            <div class="icon-container">
+              <img
+                src="/images/dashboard/report.png"
+                class="icon"
+                alt="Accounting"
+              />
+            </div>
+            <div class="text-container">
+              <p class="title">Accounting</p>
+              <p class="description">
+                Track P&amp;L, manage expenses, monitor bank accounts and cash flow — full financial overview.
+              </p>
+            </div>
+          </div>
+        </div>
+      </Link>
+
 
 
     </div>

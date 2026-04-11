@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\BankController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PosController;
@@ -121,6 +123,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
   Route::post('/api/products2', [ProductController::class, 'fetchProducts2']);
 
     Route::resource('return-bill', ReturnItemController::class);
+
+    // ── Accounting ──────────────────────────────────────────────────────────
+    Route::get('/accounting', [BankController::class, 'index'])->name('accounting.index');
+
+    // Expenses
+    Route::resource('expenses', ExpenseController::class)->only(['index', 'store', 'update', 'destroy']);
+
+    // Bank accounts
+    Route::post('/bank-accounts', [BankController::class, 'storeAccount'])->name('bank-accounts.store');
+    Route::put('/bank-accounts/{bankAccount}', [BankController::class, 'updateAccount'])->name('bank-accounts.update');
+    Route::delete('/bank-accounts/{bankAccount}', [BankController::class, 'destroyAccount'])->name('bank-accounts.destroy');
+
+    // Bank account detail + transactions
+    Route::get('/banking/{bankAccount}', [BankController::class, 'showAccount'])->name('banking.show');
+    Route::post('/banking/{bankAccount}/transactions', [BankController::class, 'storeTransaction'])->name('banking.transactions.store');
+    Route::delete('/banking/transactions/{bankTransaction}', [BankController::class, 'destroyTransaction'])->name('banking.transactions.destroy');
 
 
 
