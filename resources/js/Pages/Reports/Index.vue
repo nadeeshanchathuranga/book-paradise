@@ -151,24 +151,6 @@
 
 
 
-    <!-- Inventory totals -->
-    <div class="grid w-full md:grid-cols-3 grid-cols-2 gap-8">
-      <div class="py-6 flex flex-col justify-center items-center border-2 border-[#ffb224] w-full space-y-4 rounded-2xl bg-[#ffb224] shadow-lg">
-        <h2 class="text-xl font-extrabold tracking-wide text-black uppercase">Total Quantity In Stock:</h2>
-        <p class="text-2xl font-bold text-black">{{ totalQty }} QTY</p>
-      </div>
-
-      <div class="py-6 flex flex-col justify-center items-center border-2 border-[#41ec16] w-full space-y-4 rounded-2xl bg-[#41ec16] shadow-lg">
-        <h2 class="text-xl font-extrabold tracking-wide text-black uppercase">Total Selling Price In Stock:</h2>
-        <p class="text-2xl font-bold text-black">{{ totalSellingPrice.toFixed(2) }} LKR</p>
-      </div>
-
-      <div class="py-6 flex flex-col justify-center items-center border-2 border-[#3e41ff] w-full space-y-4 rounded-2xl bg-[#3e41ff] shadow-lg">
-        <h2 class="text-xl font-extrabold tracking-wide text-black uppercase">Total Cost Price In Stock:</h2>
-        <p class="text-2xl font-bold text-black">{{ totalRetailValue.toFixed(2) }} LKR</p>
-      </div>
-    </div>
-
     <!-- Charts -->
     <div class="flex md:flex-row flex-col items-center justify-center w-full h-full md:space-x-4 md:space-y-0 space-y-4">
       <div class="flex flex-col justify-between items-center md:w-1/3 w-full bg-white border-4 border-black rounded-xl h-[450px]">
@@ -381,89 +363,6 @@
       </div>
     </div>
 
-    <!-- Top Products Stock Table -->
-    <div class="w-full bg-white border-4 border-black rounded-xl p-6">
-      <h2 class="text-2xl font-semibold text-slate-700 text-center pb-4">Top Products Stock Table</h2>
-
-      <div class="flex justify-between items-center pb-4">
-        <div class="flex gap-4">
-          <button @click="downloadStockTablePDF" class="px-4 py-2 text-md font-semibold text-white bg-orange-600 rounded-lg hover:bg-orange-700 shadow-md">
-            Download PDF
-          </button>
-        </div>
-
-        <div class="flex items-center gap-3">
-          <div class="py-2 px-4 border-2 border-green-600 rounded-xl bg-green-100 shadow-sm text-center">
-            <p class="text-sm font-extrabold text-black uppercase">
-              Total Sales Qty:
-              <span class="text-base font-bold">{{ totalSalesQty.toLocaleString() }}</span>
-            </p>
-          </div>
-          <div class="py-2 px-4 border-2 border-blue-600 rounded-xl bg-blue-100 shadow-sm text-center">
-            <p class="text-sm font-extrabold text-black uppercase">
-              Total Profit:
-              <span class="text-base font-bold">
-                {{ grandTotalProfit.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) }} LKR
-              </span>
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div class="overflow-x-auto max-h-[420px] border rounded-xl mt-2">
-        <table id="stockQtyTbl" class="w-full text-gray-800 bg-white border border-gray-300 rounded-lg shadow-md table-auto">
-          <thead>
-            <tr class="bg-gradient-to-r from-blue-700 via-blue-600 to-blue-700 text-white text-[14px] border-b border-blue-800">
-              <th class="p-3 text-left font-semibold">#</th>
-              <th class="p-3 text-left font-semibold">Product</th>
-              <th class="p-3 text-center font-semibold">Sales Qty</th>
-              <th class="p-3 text-center font-semibold">Total Sales Value (LKR)</th>
-              <th class="p-3 text-center font-semibold">Price (LKR)</th>
-              <th class="p-3 text-center font-semibold">Discount</th>
-              <th class="p-3 text-center font-semibold">Price After Discount</th>
-              <th class="p-3 text-center font-semibold">Profit</th>
-            </tr>
-          </thead>
-
-          <tbody class="text-[12px] font-medium">
-            <tr v-for="(p, i) in products" :key="p.id ?? i" class="border-b transition duration-200 hover:bg-gray-100">
-              <td class="p-3 text-center">{{ i + 1 }}</td>
-              <td class="p-3 font-bold">{{ p.name || 'N/A' }}</td>
-              <td class="p-3 text-center">{{ Number(p.sales_qty || 0) }}</td>
-              <td class="p-3 text-center">
-                {{ (Number(p.sales_qty || 0) * Number(p.selling_price || 0)).toFixed(2) }}
-              </td>
-              <td class="p-3 text-center">{{ Number(p.selling_price || 0).toFixed(2) }}</td>
-              <td class="p-3 text-center">
-                <span v-if="Number(p.discount || 0) <= 100">{{ Number(p.discount || 0) }}%</span>
-                <span v-else>Rs. {{ Number(p.discount).toFixed(2) }}</span>
-              </td>
-              <td class="p-3 text-center">{{ priceAfterDiscount(p).toFixed(2) }}</td>
-              <td class="p-3 text-center">{{ totalProfit(p).toFixed(2) }} LKR</td>
-            </tr>
-          </tbody>
-
-          <tfoot class="bg-gray-50 text-[12px]  font-semibold">
-            <tr>
-              <td class="p-3 text-right" colspan="2">Totals:</td>
-              <td class="p-3 text-right">{{ totalSalesQty.toLocaleString() }}</td>
-              <td class="p-3 text-right"></td>
-              <td class="p-3 text-right"></td>
-              <td class="p-3 text-right"></td>
-              <td class="p-3 text-right"></td>
-              <td class="p-3 text-right">
-                {{ grandTotalProfit.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) }} LKR
-              </td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-    </div>
-
-
-
-
-
 
 
 
@@ -502,7 +401,6 @@ ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale, LinearScale,
 
 // Props expected from controller (updated names)
 const props = defineProps({
-  products: { type: Array, required: true },
   sales: { type: Array, required: true },
 
   totalSaleAmount: { type: Number, required: true },
@@ -526,36 +424,12 @@ const props = defineProps({
 // State
 const startDate = ref(props.startDate);
 const endDate   = ref(props.endDate);
-const products  = ref(props.products);
-
 const sales     = ref(props.sales);
 
 
 // Formatting helpers
 const toMoney   = (n) => (Number(n || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const formatDate= (d) => (d ? new Date(d).toLocaleDateString() : "");
-
-// Totals (inventory cards)
-const totalQty = computed(() => products.value.reduce((sum, p) => sum + (p.stock_quantity || 0), 0));
-const totalSellingPrice = computed(() =>
-  products.value.reduce((sum, p) => sum + (p.stock_quantity || 0) * (parseFloat(p.selling_price) || 0), 0)
-);
-const totalRetailValue = computed(() =>
-  products.value.reduce((sum, p) => sum + (p.stock_quantity || 0) * (parseFloat(p.cost_price) || 0), 0)
-);
-
-// Price helpers for product table (product-level discount for product catalog display)
-const priceAfterDiscount = (product) => {
-  const price = Number(product.selling_price || 0);
-  const discount = Number(product.discount || 0);
-  return discount <= 100 ? price * (1 - discount / 100) : price - discount;
-};
-const profitPerUnit = (product) => priceAfterDiscount(product) - Number(product.cost_price || 0);
-const totalProfit   = (product) => profitPerUnit(product) * Number(product.sales_qty || 0);
-
-// Product table totals
-const totalSalesQty    = computed(() => products.value.reduce((s, p) => s + Number(p.sales_qty || 0), 0));
-const grandTotalProfit = computed(() => products.value.reduce((s, p) => s + totalProfit(p), 0));
 
 // Date filter (IMPORTANT: preserveState false)
 const filterData = () => {
@@ -935,105 +809,10 @@ const downloadSalesTablePDF = () => {
 
  
 
-// ===== Stock table PDF =====
-const downloadStockTablePDF = () => {
-  const tableEl = document.getElementById("stockQtyTbl");
-  if (!tableEl) return;
-
-  const toNumber = (txt) => Number(String(txt).replace(/[^\d.\-]/g, "")) || 0;
-  const rows = [];
-  const $ = window.$;
-
-  if ($ && $.fn && $.fn.dataTable && $.fn.dataTable.isDataTable("#stockQtyTbl")) {
-    const dt = $("#stockQtyTbl").DataTable();
-    dt.rows({ search: "applied" }).every(function () {
-      const tr = this.node();
-      const cells = Array.from(tr.querySelectorAll("td")).map(td => (td.textContent || "").trim());
-      rows.push([cells[0], cells[1], cells[2], cells[3], cells[4], cells[5], cells[6], cells[7]]);
-    });
-  } else {
-    tableEl.querySelectorAll("tbody tr").forEach((tr) => {
-      const cells = Array.from(tr.querySelectorAll("td")).map(td => (td.textContent || "").trim());
-      rows.push([cells[0], cells[1], cells[2], cells[3], cells[4], cells[5], cells[6], cells[7]]);
-    });
-  }
-
-  const filteredTotals = rows.reduce(
-    (acc, r) => {
-      acc.qty += Number(r[2]) || 0;
-      acc.sales += toNumber(r[3]);
-      acc.profit += toNumber(r[7]);
-      return acc;
-    },
-    { qty: 0, sales: 0, profit: 0 }
-  );
-
-  const doc = new jsPDF("l", "mm", "a4");
-  doc.setFontSize(16);
-  doc.text("Top Products Stock Report", 14, 12);
-  doc.setFontSize(10);
-  doc.text(`Date range: ${dateRangeLabel.value} • Generated: ${new Date().toLocaleString()}`, 14, 18);
-
-  const head = [[ "#","Product","Sales Qty","Total Sales Value (LKR)","Price (LKR)","Discount","Price After Discount","Profit" ]];
-
-  doc.autoTable({
-    head, body: rows, startY: 24, theme: "striped",
-    styles: { fontSize: 9 }, headStyles: { fillColor: [33, 102, 197], textColor: 255 },
-    columnStyles: {
-      0: { cellWidth: 10 }, 1: { cellWidth: 60 }, 2: { cellWidth: 22, halign: "right" },
-      3: { cellWidth: 34, halign: "right" }, 4: { cellWidth: 28, halign: "right" },
-      5: { cellWidth: 28, halign: "center" }, 6: { cellWidth: 34, halign: "right" }, 7: { cellWidth: 34, halign: "right" },
-    },
-    margin: { top: 18, left: 8, right: 8 },
-  });
-
-  const totalsRow = [
-    "", "Totals:", filteredTotals.qty.toLocaleString(),
-    filteredTotals.sales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " LKR",
-    "—", "—", "—",
-    filteredTotals.profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " LKR",
-  ];
-
-  doc.autoTable({
-    body: [totalsRow], startY: doc.lastAutoTable ? doc.lastAutoTable.finalY + 2 : 24,
-    theme: "plain", styles: { fontSize: 10, fontStyle: "bold" },
-    columnStyles: {
-      0: { cellWidth: 10 }, 1: { cellWidth: 60, halign: "right" }, 2: { cellWidth: 22, halign: "right" },
-      3: { cellWidth: 34, halign: "right" }, 4: { cellWidth: 28 }, 5: { cellWidth: 28 }, 6: { cellWidth: 34 },
-      7: { cellWidth: 34, halign: "right" },
-    },
-    margin: { left: 8, right: 8 },
-  });
-
-  const safe = (s) => s.replace(/[^\dA-Za-z-]/g, "_");
-  doc.save(`Top_Products_Stock_${safe(dateRangeLabel.value)}.pdf`);
-};
-
 // ===== DataTables init =====
 onMounted(() => {
   const jq = window.$;
 
-
-
-  // Stock table
-  const $stock = jq && jq("#stockQtyTbl");
-  if ($stock && jq.fn.dataTable) {
-    if (jq.fn.dataTable.isDataTable($stock)) $stock.DataTable().destroy();
-    const dt = $stock.DataTable({
-      dom: "Bfrtip",
-      paging: false,
-      buttons: [],
-      columnDefs: [{ targets: 0, searchable: false, orderable: false }],
-      initComplete: function () {
-        const $input = jq("div.dataTables_filter input");
-        $input.attr("placeholder", "Search stock...");
-        $input.on("keypress", function (e) {
-          if (e.which == 13) dt.search(this.value).draw();
-        });
-      },
-      language: { search: "" },
-    });
-  }
 
 
 });
@@ -1044,16 +823,16 @@ onMounted(() => {
 .dataTables_wrapper .dataTables_paginate {
   display: flex; justify-content: center; align-items: center; margin-top: 20px;
 }
-#salesTbl_filter, #stockQtyTbl_filter, #expenseTbl_filter {
+#salesTbl_filter, #expenseTbl_filter {
   display: flex; justify-content: flex-end; align-items: center; margin-bottom: 16px; float: left;
 }
-#salesTbl_filter label, #stockQtyTbl_filter label, #expenseTbl_filter label { font-size: 17px; color: #000000; display: flex; align-items: center; }
-#salesTbl_filter input[type="search"], #stockQtyTbl_filter input[type="search"], #expenseTbl_filter input[type="search"] {
+#salesTbl_filter label, #expenseTbl_filter label { font-size: 17px; color: #000000; display: flex; align-items: center; }
+#salesTbl_filter input[type="search"], #expenseTbl_filter input[type="search"] {
   font-weight: 400; padding: 9px 15px; font-size: 14px; color: #000000cc;
   border: 1px solid rgb(209 213 219); border-radius: 5px; background: #fff;
   outline: none; transition: all 0.5s ease;
 }
-#salesTbl_filter input[type="search"]:focus, #stockQtyTbl_filter input[type="search"]:focus, #expenseTbl_filter input[type="search"]:focus {
+#salesTbl_filter input[type="search"]:focus, #expenseTbl_filter input[type="search"]:focus {
   border: 1px solid #4b5563; box-shadow: none;
 }
 .dataTables_wrapper { margin-bottom: 10px; }

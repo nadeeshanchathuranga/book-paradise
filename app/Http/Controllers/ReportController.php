@@ -45,45 +45,12 @@ class ReportController extends Controller
         }
     };
 
-    // -------- Top Products (sold in range via Sale.created_at) --------
-    if ($from || $to) {
-        $productIds = SaleItem::whereHas('sale', function ($q) use ($applyCreatedWindow) {
-                $applyCreatedWindow($q);
-            })
-            ->pluck('product_id')
-            ->unique();
-
-        $products = Product::whereIn('id', $productIds)
-            ->orderBy('created_at', 'desc')
-            ->get();
-    } else {
-        $products = Product::orderBy('created_at', 'desc')->get();
-    }
-
     // -------- Sales (filter by created_at) --------
     $salesQuery = Sale::with(['saleItems.product.category', 'employee', 'customer']);
 
     if ($from || $to) {
         $applyCreatedWindow($salesQuery);
     }
-
-    // For qty per product (respect same window through parent sale)
-    $salesQuantitiesQuery = SaleItem::query()->whereHas('sale', function ($q) use ($applyCreatedWindow, $from, $to) {
-        if ($from || $to) $applyCreatedWindow($q);
-    });
-
-    $salesQuantities = $salesQuantitiesQuery
-        ->select('product_id')
-        ->selectRaw('SUM(quantity) as total_sales_qty')
-        ->groupBy('product_id')
-        ->get()
-        ->keyBy('product_id');
-
-    // Attach sales_qty to products
-    $products->transform(function ($product) use ($salesQuantities) {
-        $product->sales_qty = (float) ($salesQuantities->get($product->id)->total_sales_qty ?? 0);
-        return $product;
-    });
 
     $sales = $salesQuery->orderBy('created_at', 'desc')->get();
 
@@ -142,7 +109,6 @@ class ReportController extends Controller
 
 
     return Inertia::render('Reports/Index', [
-        'products'                  => $products,
         'sales'                     => $sales,
 
         'totalSaleAmount'           => round($totalSaleAmount, 2),
@@ -173,54 +139,9 @@ class ReportController extends Controller
 
 
 
-    public function stockReport(Request $request)
-    {
-        if (!Gate::allows('hasRole', ['Admin'])) {
-            abort(403, 'Unauthorized');
-        }
+    // stockReport removed — stock management is handled in StockTransaction module
 
-        $startDate = $request->input('start_date');
-        $endDate = $request->input('end_date');
 
-        $stockQuery = StockTransaction::with('product.supplier');
-
-        if ($startDate) {
-            $stockQuery->whereDate('transaction_date', '>=', $startDate);
-        }
-
-        if ($endDate) {
-            $stockQuery->whereDate('transaction_date', '<=', $endDate);
-        }
-
-        $stockTransactions = $stockQuery->orderBy('transaction_date', 'desc')->get();
-        $products = Product::with('supplier')->orderBy('name', 'asc')->get();
-
-        $productSummaries = $products->map(function ($product) use ($stockTransactions) {
-            $productTransactions = $stockTransactions->where('product_id', $product->id);
-
-            return [
-                'id' => $product->id,
-                'name' => $product->name,
-                'code' => $product->code,
-                'supplier_name' => $product->supplier?->name,
-                'current_stock' => $product->stock_quantity ?? 0,
-                'added_qty' => $productTransactions->where('transaction_type', 'Added')->sum('quantity'),
-                'deducted_qty' => $productTransactions->where('transaction_type', 'Deducted')->sum('quantity'),
-            ];
-        });
-
-        return Inertia::render('Reports/StockReport', [
-            'productSummaries' => $productSummaries,
-            'stockTransactions' => $stockTransactions,
-            'totalProducts' => $products->count(),
-            'totalTransactions' => $stockTransactions->count(),
-            'totalAdded' => $stockTransactions->where('transaction_type', 'Added')->sum('quantity'),
-            'totalDeducted' => $stockTransactions->where('transaction_type', 'Deducted')->sum('quantity'),
-            'currentStock' => $products->sum('stock_quantity'),
-            'startDate' => $startDate,
-            'endDate' => $endDate,
-        ]);
-    }
 
     public function searchByCode(Request $request)
     {

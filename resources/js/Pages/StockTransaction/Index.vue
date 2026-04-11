@@ -86,6 +86,7 @@
 
   <!-- Right: Date Filter + Buttons -->
   <div class="flex flex-wrap items-center justify-end gap-4">
+    <!-- Date range -->
     <input
       v-model="startDate"
       type="date"
@@ -98,8 +99,39 @@
       class="px-4 py-2 border border-gray-300 rounded-md focus:ring focus:ring-blue-500"
     />
 
+    <!-- Product search -->
+    <input
+      v-model="productSearch"
+      type="text"
+      placeholder="Search product..."
+      class="px-4 py-2 border border-gray-300 rounded-md focus:ring focus:ring-blue-500 min-w-[160px]"
+    />
+
+    <!-- Category filter -->
+    <select
+      v-model="categoryId"
+      class="px-4 py-2 border border-gray-300 rounded-md focus:ring focus:ring-blue-500 bg-white"
+    >
+      <option :value="null">All Categories</option>
+      <option v-for="cat in categories" :key="cat.id" :value="cat.id">
+        {{ cat.name }}
+      </option>
+    </select>
+
+    <!-- Transaction type filter -->
+    <select
+      v-model="transactionType"
+      class="px-4 py-2 border border-gray-300 rounded-md focus:ring focus:ring-blue-500 bg-white"
+    >
+      <option value="">All Types</option>
+      <option value="Added">Added</option>
+      <option value="Sold">Sold</option>
+      <option value="Deducted">Deducted</option>
+      <option value="Deleted">Deleted</option>
+    </select>
+
     <button
-      @click="filterByDate"
+      @click="applyFilters"
       class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
     >
       Filter
@@ -136,6 +168,9 @@
                                     Product Name
                                 </th>
                                 <th class="p-4 font-semibold tracking-wide text-left uppercase">
+                                    Category
+                                </th>
+                                <th class="p-4 font-semibold tracking-wide text-left uppercase">
                                     Transaction Type & Date
                                 </th>
 
@@ -163,6 +198,9 @@
                                 <td class="px-6 py-3 text- first-letter:">{{ index + 1 }}</td>
                                 <td class="p-4 font-bold border-gray-200">
                                     {{ stock.product?.name || "N/A" }}
+                                </td>
+                                <td class="p-4 border-gray-200">
+                                    {{ stock.product?.category?.name || "N/A" }}
                                 </td>
                                 <td class="p-4 border-gray-200">
                                     <span :class="{
@@ -234,8 +272,12 @@ import 'jspdf-autotable';
 const props = defineProps({
     allStockTransactions: Array,
     totalStockTransactions: Number,
+    categories: Array,
     startDate: String,
     endDate: String,
+    productSearch: String,
+    categoryId: Number,
+    transactionType: String,
 });
 
 const allStockTransactions = ref(props.allStockTransactions);
@@ -251,46 +293,99 @@ const openEditModal = (stock) => {
 };
 
 // Bind to reactive refs
-const startDate = ref(props.startDate || '');
-const endDate = ref(props.endDate || '');
+const startDate       = ref(props.startDate || '');
+const endDate         = ref(props.endDate || '');
+const productSearch   = ref(props.productSearch || '');
+const categoryId      = ref(props.categoryId || null);
+const transactionType = ref(props.transactionType || '');
 
-const filterByDate = () => {
-    if (new Date(startDate.value) > new Date(endDate.value)) {
+const applyFilters = () => {
+    if (startDate.value && endDate.value && new Date(startDate.value) > new Date(endDate.value)) {
         alert("Start date cannot be after end date.");
         return;
     }
-
     router.get(route('stock-transition.index'), {
-        start_date: startDate.value,
-        end_date: endDate.value,
+        start_date:       startDate.value,
+        end_date:         endDate.value,
+        product_search:   productSearch.value,
+        category_id:      categoryId.value,
+        transaction_type: transactionType.value,
     });
 };
 
 
 const downloadFilteredPDF = () => {
-    const doc = new jsPDF();
-    doc.text("Stock Transitions", 14, 10);
+    const doc = new jsPDF('l', 'mm', 'a4');
+    doc.setFontSize(14);
+    doc.text("Stock Transitions", 14, 12);
 
-    // Safely access as array
-    const data = Array.isArray(props.allStockTransactions) ? props.allStockTransactions : [];
+    // Build active filter label
+    const parts = [];
+    if (startDate.value)       parts.push(`From: ${startDate.value}`);
+    if (endDate.value)         parts.push(`To: ${endDate.value}`);
+    if (productSearch.value)   parts.push(`Product: ${productSearch.value}`);
+    if (transactionType.value) parts.push(`Type: ${transactionType.value}`);
+    const catName = props.categories?.find(c => c.id === categoryId.value)?.name;
+    if (catName)               parts.push(`Category: ${catName}`);
 
-    const tableRows = data.map((stock, index) => [
-        index + 1,
-        stock.product?.name || "N/A",
-        stock.transaction_type || "N/A",
-        stock.transaction_date || "N/A",
-        stock.quantity || "N/A",
-        stock.product?.supplier?.name || "N/A",
-        stock.reason || "N/A",
-    ]);
+    doc.setFontSize(9);
+    doc.text(parts.length ? parts.join('  |  ') : 'All records', 14, 18);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 22);
+
+    // Read from DataTable visible rows (respects client-side search/sort)
+    const rows = [];
+    const $ = window.$;
+    if ($ && $.fn.dataTable && $.fn.dataTable.isDataTable('#TransitionTable')) {
+        const dt = $('#TransitionTable').DataTable();
+        dt.rows({ search: 'applied' }).every(function () {
+            const cells = Array.from(this.node().querySelectorAll('td'))
+                .map(td => (td.textContent || '').trim());
+            // cells: [#, product, category, type+date, qty, supplier, reason, add-btn]
+            // We rebuild cleanly from data instead
+            const d = this.data();
+            rows.push(cells.slice(0, 7)); // exclude the last "Add" button column
+        });
+    }
+
+    // Fallback: use server-side data directly
+    if (rows.length === 0) {
+        const data = Array.isArray(props.allStockTransactions) ? props.allStockTransactions : [];
+        data.forEach((stock, index) => {
+            rows.push([
+                index + 1,
+                stock.product?.name || 'N/A',
+                stock.product?.category?.name || 'N/A',
+                stock.transaction_type || 'N/A',
+                stock.transaction_date || 'N/A',
+                stock.quantity ?? 'N/A',
+                stock.product?.supplier?.name || 'N/A',
+                stock.reason || 'N/A',
+            ]);
+        });
+    }
 
     doc.autoTable({
-        head: [["#", "Product Name", "Type", "Date", "Qty", "Supplier", "Reason"]],
-        body: tableRows,
-        startY: 20,
+        head: [['#', 'Product Name', 'Category', 'Type', 'Date', 'Qty', 'Supplier', 'Reason']],
+        body: rows,
+        startY: 26,
+        theme: 'striped',
+        styles: { fontSize: 9, cellPadding: 2 },
+        headStyles: { fillColor: [37, 99, 235], textColor: 255 },
+        columnStyles: {
+            0: { cellWidth: 10 },
+            1: { cellWidth: 50 },
+            2: { cellWidth: 35 },
+            3: { cellWidth: 25 },
+            4: { cellWidth: 28 },
+            5: { cellWidth: 15, halign: 'center' },
+            6: { cellWidth: 40 },
+            7: { cellWidth: 60 },
+        },
+        margin: { top: 26, left: 8, right: 8 },
     });
 
-    doc.save("StockTransitions.pdf");
+    const label = parts.length ? parts.join('_').replace(/[^\w-]/g, '_') : 'All';
+    doc.save(`StockTransitions_${label}.pdf`);
 };
 
 

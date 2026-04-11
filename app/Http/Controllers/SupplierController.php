@@ -24,6 +24,29 @@ class SupplierController extends Controller
         ]);
     }
 
+    public function show(Supplier $supplier)
+    {
+        $supplier->load([
+            'products.category',
+            'products.color',
+            'products.size',
+            'supplierPayments' => fn($q) => $q->orderBy('payment_date', 'desc'),
+        ]);
+
+        $totalPurchaseCost = $supplier->products->sum(
+            fn($p) => ($p->total_quantity ?? 0) * ($p->cost_price ?? 0)
+        );
+        $totalPaid  = $supplier->supplierPayments->sum('amount');
+        $balance    = $totalPurchaseCost - $totalPaid;
+
+        return Inertia::render('Suppliers/Show', [
+            'supplier'          => $supplier,
+            'totalPurchaseCost' => round($totalPurchaseCost, 2),
+            'totalPaid'         => round($totalPaid, 2),
+            'balance'           => round($balance, 2),
+        ]);
+    }
+
     // public function create()
     // {
     //     $categories = Category::all();

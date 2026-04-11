@@ -195,6 +195,13 @@
                 </td>
                 <td class="p-4 text-center border-t border-gray-200">
                   <div class="inline-flex items-center w-full space-x-3">
+                    <!-- View Button -->
+                    <Link
+                      :href="route('suppliers.show', supplier.id)"
+                      class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-[14px] font-medium rounded-lg transition duration-150"
+                    >
+                      View
+                    </Link>
                     <!-- <button
                       v-if="HasRole(['Admin'])"
                       @click="

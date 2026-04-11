@@ -17,6 +17,7 @@ use App\Http\Controllers\QuotationController;
 
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\StockTransactionController;
+use App\Http\Controllers\SupplierPaymentController;
 use App\Http\Controllers\TransactionHistoryController;
 use App\Http\Controllers\ManualPosController;
 use Illuminate\Foundation\Application;
@@ -69,6 +70,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('products', ProductController::class);
     Route::resource('suppliers', SupplierController::class);
     Route::post('suppliers/{supplier}', [SupplierController::class, 'update']);
+    Route::post('/suppliers/{supplier}/payments', [SupplierPaymentController::class, 'store'])->name('supplier.payments.store');
+    Route::delete('/supplier-payments/{supplierPayment}', [SupplierPaymentController::class, 'destroy'])->name('supplier.payments.destroy');
     Route::post('products/{product}', [ProductController::class, 'update']);
     Route::post('products/{product}/adjust-stock', [ProductController::class, 'adjustStock'])->name('products.adjustStock');
     Route::post('products-variant', [ProductController::class, 'productVariantStore'])->name('productVariant');
@@ -89,7 +92,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/pos/returns/submit', [PosController::class, 'submitReturn'])->name('pos.return.submit');
     Route::post('/pos/submit', [PosController::class, 'submit'])->name('pos.checkout');
     Route::resource('payment', PaymentController::class);
-    Route::get('reports/stock-report', [ReportController::class, 'stockReport'])->name('reports.stockReport');
     Route::resource('reports', ReportController::class);
     Route::get('/batch-management/search', [ReportController::class, 'searchByCode']);
     Route::resource('customers', CustomerController::class);
