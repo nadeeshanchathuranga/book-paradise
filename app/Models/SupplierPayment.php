@@ -15,6 +15,8 @@ class SupplierPayment extends Model
         'payment_date',
         'payment_method',
         'note',
+        'bank_account_id',
+        'bank_transaction_id',
     ];
 
     protected $casts = [
@@ -25,5 +27,10 @@ class SupplierPayment extends Model
     public function supplier()
     {
         return $this->belongsTo(Supplier::class, 'supplier_id', 'id');
+    }
+
+    public function bankAccount()
+    {
+        return $this->belongsTo(BankAccount::class, 'bank_account_id', 'id');
     }
 }

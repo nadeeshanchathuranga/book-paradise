@@ -200,13 +200,21 @@
       </div>
 
       <!-- ── Quick Links ── -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Link href="/expenses"
           class="flex items-center gap-4 bg-red-50 border border-red-200 rounded-2xl p-5 hover:shadow-md transition">
           <div class="w-12 h-12 bg-red-600 rounded-xl flex items-center justify-center text-white text-2xl">💸</div>
           <div>
             <p class="text-lg font-bold text-gray-800">Expense Manager</p>
             <p class="text-sm text-gray-500">Track, categorise and analyse all business expenses.</p>
+          </div>
+        </Link>
+        <Link href="/cheques"
+          class="flex items-center gap-4 bg-purple-50 border border-purple-200 rounded-2xl p-5 hover:shadow-md transition">
+          <div class="w-12 h-12 bg-purple-600 rounded-xl flex items-center justify-center text-white text-2xl">🏦</div>
+          <div>
+            <p class="text-lg font-bold text-gray-800">Cheque Management</p>
+            <p class="text-sm text-gray-500">Track received &amp; issued cheques, PDC and clearance.</p>
           </div>
         </Link>
         <Link href="/reports"

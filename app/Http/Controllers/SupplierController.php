@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BankAccount;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\Supplier;
@@ -30,7 +31,7 @@ class SupplierController extends Controller
             'products.category',
             'products.color',
             'products.size',
-            'supplierPayments' => fn($q) => $q->orderBy('payment_date', 'desc'),
+            'supplierPayments' => fn($q) => $q->with('bankAccount')->orderBy('payment_date', 'desc'),
         ]);
 
         $totalPurchaseCost = $supplier->products->sum(
@@ -44,6 +45,7 @@ class SupplierController extends Controller
             'totalPurchaseCost' => round($totalPurchaseCost, 2),
             'totalPaid'         => round($totalPaid, 2),
             'balance'           => round($balance, 2),
+            'bankAccounts'      => BankAccount::orderBy('name')->get(),
         ]);
     }
 
