@@ -19,6 +19,7 @@ use App\Http\Controllers\QuotationController;
 
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\StockTransactionController;
+use App\Http\Controllers\ChequeController;
 use App\Http\Controllers\SupplierPaymentController;
 use App\Http\Controllers\TransactionHistoryController;
 use App\Http\Controllers\ManualPosController;
@@ -142,6 +143,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 
 
+
+    // ── Cheque management ───────────────────────────────────────────────────
+    Route::get('/cheques', [ChequeController::class, 'index'])->name('cheques.index');
+    Route::post('/cheques', [ChequeController::class, 'store'])->name('cheques.store');
+    Route::patch('/cheques/{cheque}/status', [ChequeController::class, 'updateStatus'])->name('cheques.updateStatus');
+    Route::delete('/cheques/{cheque}', [ChequeController::class, 'destroy'])->name('cheques.destroy');
 
     Route::post('/api/products', [ProductController::class, 'fetchProducts']);
     Route::post('/api/sale/items', [ReturnItemController::class, 'fetchSaleItems'])->name('sale.items');
