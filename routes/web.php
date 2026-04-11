@@ -70,6 +70,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('suppliers', SupplierController::class);
     Route::post('suppliers/{supplier}', [SupplierController::class, 'update']);
     Route::post('products/{product}', [ProductController::class, 'update']);
+    Route::post('products/{product}/adjust-stock', [ProductController::class, 'adjustStock'])->name('products.adjustStock');
     Route::post('products-variant', [ProductController::class, 'productVariantStore'])->name('productVariant');
 
     Route::post('products-size', [ProductController::class, 'sizeStore'])->name('productSize');
@@ -88,6 +89,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/pos/returns/submit', [PosController::class, 'submitReturn'])->name('pos.return.submit');
     Route::post('/pos/submit', [PosController::class, 'submit'])->name('pos.checkout');
     Route::resource('payment', PaymentController::class);
+    Route::get('reports/stock-report', [ReportController::class, 'stockReport'])->name('reports.stockReport');
     Route::resource('reports', ReportController::class);
     Route::get('/batch-management/search', [ReportController::class, 'searchByCode']);
     Route::resource('customers', CustomerController::class);

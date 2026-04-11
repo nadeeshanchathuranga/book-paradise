@@ -254,6 +254,7 @@ $productsQuery = Product::with('category', 'color', 'size', 'supplier')
                     'quantity' => $stockQuantity,
                     'transaction_date' => now(),
                     'supplier_id' => $validated['supplier_id'] ?? null,
+                    'reason' => 'Initial stock',
                 ]);
             }
 
@@ -470,9 +471,47 @@ $productsQuery = Product::with('category', 'color', 'size', 'supplier')
         return redirect()->route('products.index')->with('banner', 'Product updated successfully');
     }
 
+    public function adjustStock(Request $request, Product $product)
+    {
+        if (!Gate::allows('hasRole', ['Admin'])) {
+            abort(403, 'Unauthorized');
+        }
 
+        $validated = $request->validate([
+            'action' => ['required', Rule::in(['add', 'deduct'])],
+            'quantity' => 'required|integer|min:1',
+            'supplier_id' => 'nullable|exists:suppliers,id',
+            'reason' => 'nullable|string|max:255',
+        ]);
 
+        $quantity = $validated['quantity'];
 
+        if ($validated['action'] === 'deduct' && $quantity > $product->stock_quantity) {
+            return redirect()->back()->withErrors(['quantity' => 'Cannot deduct more than available stock.']);
+        }
+
+        if ($validated['action'] === 'add') {
+            $product->stock_quantity += $quantity;
+            $transactionType = 'Added';
+        } else {
+            $product->stock_quantity -= $quantity;
+            $transactionType = 'Deducted';
+        }
+
+        $product->total_quantity = $product->stock_quantity;
+        $product->save();
+
+        StockTransaction::create([
+            'product_id' => $product->id,
+            'transaction_type' => $transactionType,
+            'quantity' => $quantity,
+            'transaction_date' => now(),
+            'supplier_id' => $validated['supplier_id'] ?? $product->supplier_id,
+            'reason' => $validated['reason'] ?? null,
+        ]);
+
+        return redirect()->route('products.index')->with('banner', 'Stock updated successfully');
+    }
 
 
     /**
