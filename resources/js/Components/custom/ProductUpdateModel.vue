@@ -390,6 +390,21 @@
                   </div>
                 </div>
 
+                <div class="flex items-center gap-8 mt-6">
+                  <div class="w-full">
+                    <label class="block text-sm font-medium text-gray-300"
+                      >Barcode:</label
+                    >
+                    <input
+                      v-model="form.barcode"
+                      type="text"
+                      id="barcode"
+                      readonly
+                      class="w-full px-4 py-2 mt-2 text-gray-400 bg-gray-800 rounded-md cursor-not-allowed border border-gray-600"
+                    />
+                  </div>
+                </div>
+
                 <div class="flex items-center gap-8 mt-6" v-if="isPharma">
                   <div class="w-full">
                     <label class="block text-sm font-medium text-gray-300"
